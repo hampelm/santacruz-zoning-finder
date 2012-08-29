@@ -11,20 +11,31 @@
     <link href='wax/ext/leaflet.css' rel='stylesheet' type='text/css' />
     <script type="text/javascript" charset="utf-8">
       var map;
-            
+      
+      // Given a Leaflet LatLng object, returns a URL that queries the 
+      // ArcGIS server's zoning collection at that location.
       function getZoningEndpointURL(latlng) {
         return "http://gis.cityofsantacruz.com/ArcGIS/rest/services/NewPlanning/MapServer/8/query?geometryType=esriGeometryPoint&geometry=" + latlng.lng + "," + latlng.lat + "&f=json";
       }
       
+      // Given a Leaflet LatLng object, returns a list of zoning codes
+      // at that location.
       function getZoningAtPoint(latlng, callback) {
         var url = getZoningEndpointURL(latlng);
         
-        $.ajax({
+        $.ajax({ 
           url: url,
-          dataType: 'jsonp',
-        }).done(callback);
+          dataType: 'jsonp'
+        }).done(function(data){
+          var zoningCodes = [];
+          for (var i=0; i < data.features.length; i++) {
+            zoningCodes.push(data.features[i].attributes.ZONING);
+          };
+          callback(zoningCodes);
+        });
       };
       
+      // Set up the map
       wax.tilejson('http://api.tiles.mapbox.com/v3/matth.map-mn3zmce4.jsonp',
         function(tilejson) {
           map = new L.Map('map-div')
@@ -32,16 +43,18 @@
             .setView(new L.LatLng(36.9741171, -122.03079630000002), 13);
       });
       
+      // Geocode an address and get the zoning code when the search form is
+      // submitted. 
       function codeAddress() {
         var address = document.getElementById("address").value + " Santa Cruz, CA";
         geocoder = new google.maps.Geocoder();
         
-        geocoder.geocode( { 'address': address}, function(results, status) {
+        geocoder.geocode( { 'address': address }, function(results, status) {
           if (status == google.maps.GeocoderStatus.OK) {
             var latlng = new L.LatLng(results[0].geometry.location.lat(), results[0].geometry.location.lng());
             var marker = new L.Marker(latlng);
             map.addLayer(marker);
-            map.setView(latlng, 15);
+            map.setView(latlng, 16);
             
             getZoningAtPoint(latlng, function(data) {
               console.log(data);
@@ -60,9 +73,8 @@
         
         <div id='map-div' style="height:350px;"></div>
         
-        <input type="text" name="address" id="address" value="54 Bay ST">
+        <input type="text" name="address" id="address" value="54 Bay St">
         <input type="submit" name="Search" value="Search" id="search" onclick="codeAddress();">
-        
         
     </div>
 </body>
